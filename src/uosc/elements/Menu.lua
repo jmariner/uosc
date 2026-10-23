@@ -694,7 +694,7 @@ function Menu:handle_cursor_down()
 	if self.proximity_raw <= 0 then
 		self.drag_last_y = cursor.y
 		self.current.fling = nil
-	else
+	elseif self.root.close_on_click_outside ~= false then
 		self:close()
 	end
 end
