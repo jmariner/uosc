@@ -125,7 +125,7 @@ function Controls:init_options()
 		-- Create a control element
 		local control = {dispositions = dispositions, kind = kind}
 
-		if kind == 'space' then
+		if kind == 'space' or kind == 'timeline' then
 			control.sizing = 'space'
 		elseif kind == 'gap' then
 			table_assign(control, {sizing = 'gap', scale = 1, ratio = params[1] or 0.3, ratio_min = 0})
@@ -220,6 +220,7 @@ end
 function Controls:reflow()
 	-- Populate the layout only with items that are not hidden and match current disposition
 	self.layout = {}
+	self.has_timeline_slot = false
 	for _, control in ipairs(self.controls) do
 		local matches = false
 		local conditions_num = 0
@@ -250,7 +251,10 @@ function Controls:reflow()
 		if conditions_num == 0 then matches = true end
 		local show = matches and (not control.element or control.element.hide ~= true)
 		if control.element then control.element.enabled = show end
-		if show then self.layout[#self.layout + 1] = control end
+		if show then
+			self.layout[#self.layout + 1] = control
+			if control.kind == 'timeline' then self.has_timeline_slot = true end
+		end
 	end
 
 	self:update_dimensions()
@@ -306,7 +310,7 @@ function Controls:update_dimensions()
 
 	-- Disable when not enough space
 	local available_space = display.height - window_border * 2 - Elements:v('top_bar', 'size', 0)
-		- Elements:v('timeline', 'size', 0)
+		- (self.has_timeline_slot and 0 or Elements:v('timeline', 'size', 0))
 	self.enabled = available_space > size + 10
 
 	-- Reset hide/enabled flags
@@ -315,11 +319,15 @@ function Controls:update_dimensions()
 		if control.element then control.element.enabled = self.enabled end
 	end
 
-	if not self.enabled then return end
+	if not self.enabled then
+		Elements:maybe('timeline', 'set_embedded', nil)
+		return
+	end
 
 	-- Container
 	self.bx = display.width - window_border - margin
-	self.by = Elements:v('timeline', 'ay', display.height - window_border) - margin
+	local bottom = display.height - window_border
+	self.by = (self.has_timeline_slot and bottom or Elements:v('timeline', 'ay', bottom)) - margin
 	self.ax, self.ay = window_border + margin, self.by - size
 
 	-- Controls
@@ -428,6 +436,7 @@ function Controls:update_dimensions()
 	end
 
 	local space_index = 0
+	local timeline_rect = nil
 	for c, control in ipairs(self.layout) do
 		if not control.hide then
 			local sizing, element, scale, ratio = control.sizing, control.element, control.scale, control.ratio
@@ -436,6 +445,15 @@ function Controls:update_dimensions()
 			if sizing == 'space' then
 				space_index = space_index + 1
 				width = space_widths[space_index] or 0
+				if control.kind == 'timeline' and not timeline_rect then
+					-- Preceding item already left its spacing, the following one won't, so leave it here
+					local rect_width = width - (c ~= #self.layout and spacing or 0)
+					if rect_width > 0 then
+						timeline_rect = {
+							ax = round(current_x), ay = round(self.by - size), bx = round(current_x + rect_width), by = self.by,
+						}
+					end
+				end
 			elseif sizing == 'gap' then
 				if width_for_gaps > 0 then width = width_for_gaps * (ratio / gaps) end
 			elseif sizing == 'static' then
@@ -453,6 +471,7 @@ function Controls:update_dimensions()
 		end
 	end
 
+	Elements:maybe('timeline', 'set_embedded', timeline_rect)
 	Elements:update_proximities()
 	request_render()
 end

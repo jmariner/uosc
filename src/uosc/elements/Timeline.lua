@@ -9,6 +9,8 @@ function Timeline:init()
 	---@type false|{pause: boolean, distance: number, last: {x: number, y: number}}
 	self.pressed = false
 	self.obstructed = false
+	---@type nil|{ax: number, ay: number, bx: number, by: number} Slot inside controls, when drawn there.
+	self.embedded = nil
 	self.size = 0
 	self.progress_size = 0
 	self.min_progress_size = 0 -- used for `flash-progress`
@@ -50,19 +52,38 @@ function Timeline:get_effective_size()
 	return progress_size + math.ceil((self.size - self.progress_size) * self:get_visibility())
 end
 
-function Timeline:get_is_hovered() return self.enabled and self.is_hovered end
+-- Embedded timeline doesn't overlap other elements, so it shouldn't hide them when hovered.
+function Timeline:get_is_hovered() return self.enabled and self.is_hovered and not self.embedded end
+
+---@param rect? {ax: number, ay: number, bx: number, by: number} Pass nil to draw at the bottom of the window.
+function Timeline:set_embedded(rect)
+	local current = self.embedded
+	if current == rect or (current and rect and current.ax == rect.ax and current.ay == rect.ay
+		and current.bx == rect.bx and current.by == rect.by) then
+		return
+	end
+	self.embedded = rect
+	self:update_dimensions()
+	request_render()
+end
 
 function Timeline:update_dimensions()
-	self.size = round(options.timeline_size * state.scale)
 	self.top_border = round(options.timeline_border * state.scale)
+	self.size = self.embedded
+		and math.max(self.embedded.by - self.embedded.ay - self.top_border, 0)
+		or round(options.timeline_size * state.scale)
 	self.line_width = round(options.timeline_line_width * state.scale)
 	self.progress_line_width = round(options.progress_line_width * state.scale)
 	self.font_size = math.floor(math.min((self.size + 60 * state.scale) * 0.2, self.size * 0.96) * options.font_scale)
 	local window_border_size = Elements:v('window_border', 'size', 0)
-	self.ax = window_border_size
-	self.ay = display.height - window_border_size - self.size - self.top_border
-	self.bx = display.width - window_border_size
-	self.by = display.height - window_border_size
+	if self.embedded then
+		self.ax, self.ay, self.bx, self.by = self.embedded.ax, self.embedded.ay, self.embedded.bx, self.embedded.by
+	else
+		self.ax = window_border_size
+		self.ay = display.height - window_border_size - self.size - self.top_border
+		self.bx = display.width - window_border_size
+		self.by = display.height - window_border_size
+	end
 	self.width = self.bx - self.ax
 	self.chapter_size = math.max((self.by - self.ay) / 10, 3)
 	self.chapter_size_hover = self.chapter_size * 2
