@@ -7,7 +7,10 @@ local TopBar = class(Element)
 
 function TopBar:new() return Class.new(self) --[[@as TopBar]] end
 function TopBar:init()
-	Element.init(self, 'top_bar', {render_order = 4})
+	Element.init(self, 'top_bar', {
+		render_order = options.top_bar_above_menus and 1002 or 4,
+		ignores_curtain = options.top_bar_above_menus,
+	})
 	self.size = 0
 	self.alt_title_size = 0
 	self.chapter_size = 0
