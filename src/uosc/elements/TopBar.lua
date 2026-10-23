@@ -141,7 +141,7 @@ end
 function TopBar:select_current_chapter()
 	local current_chapter_index = self.current_chapter and self.current_chapter.index
 	local current_chapter
-	if state.time and state.chapters then
+	if options.top_bar_chapter and state.time and state.chapters then
 		_, current_chapter = itable_find(state.chapters, function(c) return state.time >= c.time end, #state.chapters, 1)
 	end
 	local new_chapter_index = current_chapter and current_chapter.index

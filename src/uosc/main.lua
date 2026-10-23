@@ -59,6 +59,7 @@ defaults = {
 	top_bar_title = 'yes',
 	top_bar_alt_title = '',
 	top_bar_alt_title_place = 'below',
+	top_bar_chapter = true,
 	top_bar_flash_on = 'video,audio',
 
 	window_border_size = 1,
